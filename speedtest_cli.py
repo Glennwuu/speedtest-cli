@@ -40,6 +40,7 @@ except ImportError:
         import xml.etree.ElementTree as ET
     except ImportError:
         from xml.dom import minidom as DOM
+
         ET = None
 
 # Begin import game to handle Python 2 and Python 3
@@ -152,7 +153,7 @@ def distance(origin, destination):
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (math.sin(dlat / 2) * math.sin(dlat / 2) + math.cos(math.radians(lat1))
-         * math.cos(math.radians(lat2)) * math.sin(dlon / 2)
+                                                   * math.cos(math.radians(lat2)) * math.sin(dlon / 2)
          * math.sin(dlon / 2))
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     d = radius * c
@@ -543,13 +544,13 @@ def speedtest():
             print_('Please provide the full URL of your Speedtest Mini server')
             sys.exit(1)
         servers = [{
-            'sponsor': 'Speedtest Mini',
-            'name': urlparts[1],
-            'd': 0,
-            'url': '%s/speedtest/upload.%s' % (url.rstrip('/'), extension[0]),
-            'latency': 0,
-            'id': 0
-        }]
+                       'sponsor': 'Speedtest Mini',
+                       'name': urlparts[1],
+                       'd': 0,
+                       'url': '%s/speedtest/upload.%s' % (url.rstrip('/'), extension[0]),
+                       'latency': 0,
+                       'id': 0
+                   }]
         try:
             best = getBestServer(servers)
         except:
@@ -566,7 +567,7 @@ def speedtest():
         try:
             unicode()
             print_(('Hosted by %(sponsor)s (%(name)s) [%(d)0.2f km]: '
-                   '%(latency)s ms' % best).encode('utf-8', 'ignore'))
+                    '%(latency)s ms' % best).encode('utf-8', 'ignore'))
         except NameError:
             print_('Hosted by %(sponsor)s (%(name)s) [%(d)0.2f km]: '
                    '%(latency)s ms' % best)
