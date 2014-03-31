@@ -1,65 +1,12 @@
-speedtest-cli
+speedtest-cli yeelink uploader
 =============
 
 Command line interface for testing internet bandwidth using
-speedtest.net
+speedtest.net and upload it to yeelink.com
 
-.. image:: https://pypip.in/v/speedtest-cli/badge.png
-        :target: https://crate.io/packages/speedtest-cli
-.. image:: https://pypip.in/d/speedtest-cli/badge.png
-        :target: https://crate.io/packages/speedtest-cli
+### CAUTION: THIS PROJECT IS NOT FINISHED YET! USE IT AT YOUR OWN RISK!
 
-Versions
---------
-
-speedtest-cli works with Python 2.4-3.4
-
-Installation
-------------
-
-pip / easy\_install
-~~~~~~~~~~~~~~~~~~~
-
-::
-
-    pip install speedtest-cli
-
-or
-
-::
-
-    easy_install speedtest-cli
-
-Github
-~~~~~~
-
-::
-
-    pip install git+https://github.com/sivel/speedtest-cli.git
-
-or
-
-::
-
-    git clone https://github.com/sivel/speedtest-cli.git
-    python speedtest-cli/setup.py install
-
-Just download (Like the way it used to be)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-    wget -O speedtest-cli https://raw.github.com/sivel/speedtest-cli/master/speedtest_cli.py
-    chmod +x speedtest-cli
-
-or
-
-::
-
-    curl -o speedtest-cli https://raw.github.com/sivel/speedtest-cli/master/speedtest_cli.py
-    chmod +x speedtest-cli
-
-Usage
+(Outdated)Usage
 -----
 
 ::
