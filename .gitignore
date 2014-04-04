@@ -1,6 +1,12 @@
 # Personal Config
 config.py
 
+# OS X
+.DS_Store
+
+# Windows
+Desktop.ini
+
 *.py[co]
 
 # Packages
