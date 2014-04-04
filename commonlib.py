@@ -4,6 +4,8 @@
 __version__ = '0.0.1'
 __author__ = 'James Swineson'
 
+import sys
+
 try:
     import builtins
 except ImportError:

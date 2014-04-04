@@ -5,30 +5,76 @@ __version__ = '0.0.1'
 __author__ = 'James Swineson'
 
 #Global Config
-fakeSpeedtestResult = 0  #speedtest-cli
-fakePingResult = 1  #ping
+
+# Fake Speedtest result for debugging.
+fakeSpeedtestResult = 1
+# Fake ping result for debugging.
+# 1 for Debian, 2 for Windows, 3 for OS X.
+fakePingResult = 2
+# Fake yeelink.com post status.
+# 0 to disable. An HTTP response code (e.g. 200) will enable this option.
+fakePostStatus = 200
+# Output detailed debug message.
 verboseMode = 1
-fakePostStatus = 1
+# Log level setting
+# All level < logLevel won't be shown.
+# 0 = info
+# 1 = warning
+# 2 = error
+# 3 = fatal error
+logLevel = 0
+# Output every system command call. Default log level is info(0).
+showCommandOutput = 1
+pingServerName = "itunes.apple.com"
+
+# Global variables (DO NOT MODIFY!)
+logSerial = 0
+
+# Strings
+logLevelString = {
+    0:"Info",
+    1:"Warning",
+    2:"Error",
+    3:"Fatal Error"
+    }
 
 import os
 import httplib
 import socket
 import sys
+import datetime
+import re
 
 from config import config
 from debugConfig import debugString
-from commonlib import print_
+from commonlib import *
 
-def log(context):
-    '''Print out log text when verbose mode enabled'''
-    # TODO: add log level support
-    if verboseMode == 1:
-        print_(context)
+
+def getCurrentTime():
+    '''Return a string for current time.'''
+    return str(datetime.datetime.now())
+
+def log(context, level = 0):
+    '''Print out log text when verbose mode enabled.
+
+Log level definition:
+
+0 = info
+1 = warning
+2 = error
+3 = fatal error
+'''
+    if (verboseMode == 0 or level < logLevel):return 0
+    global logSerial
+    logSerial = logSerial + 1
+    time = getCurrentTime()
+    for line in str(context).split("\n"):
+        if line == "": print_("\n")
+        else: print_(logLevelString[level] + "[" + str(logSerial) + ":" + time + "]" + line)
+    return 0
 
 def post_data1(sensor_id, data):
     '''Post data to yeelink.com'''
-    if fakePostStatus == 1:
-        return 200
     d = '{"value": %f}' % data
     h = {"U-ApiKey": config.API_KEY}
     p = "/v1.0/device/%d/sensor/%d/datapoints" % (config.device_id, sensor_id)
@@ -39,16 +85,23 @@ def post_data1(sensor_id, data):
 
 def post_data(sensor_id, data):
     '''post_data wrapper. Prevent timeout to cause the function never returns.'''
+    if fakePostStatus != 0:
+        return fakePostStatus
     try:
         r = post_data1(sensor_id, data)
     except (httplib.HTTPException, socket.error) as e:
         log("HTTP Request failed.")
-        return 0
+        return -1
     return r
 
 def readCommandOutput(command):
     '''Read the output of a command.'''
-    return os.popen(command).read()
+    if showCommandOutput != 0:
+        log("Running command: " + command)
+    result = os.popen(command).read()
+    if showCommandOutput != 0:
+        log("Command output:\n" + result)
+    return result
 
 def pingServer(server, count = 10 ):
     '''Actual ping and return results.'''
@@ -57,32 +110,56 @@ def pingServer(server, count = 10 ):
         return readCommandOutput('ping ' + server)
     else:
         try:
-            return debugString.pingResult[fakePingResult]
+            return debugString.pingResult[fakePingResult-1]
         except e:
             #TODO: Add a good error hint
             sys.exit(1)
 
-def ping():
-    '''Ping itunes.com test'''
+def execPing():
+    '''Ping and process data'''
     log("Starting ping test...")
-    if fakePingResult == 1:
-        ping = '''PING apple.https.tel.ccgslb.com.cn (122.228.85.199) 56(84) bytes of data.
-64 bytes from 122.228.85.199: icmp_req=1 ttl=56 time=201 ms
-64 bytes from 122.228.85.199: icmp_req=2 ttl=56 time=3233 ms
-64 bytes from 122.228.85.199: icmp_req=3 ttl=56 time=2611 ms
-64 bytes from 122.228.85.199: icmp_req=4 ttl=56 time=1796 ms
-64 bytes from 122.228.85.199: icmp_req=5 ttl=56 time=839 ms
-64 bytes from 122.228.85.199: icmp_req=6 ttl=56 time=434 ms
-64 bytes from 122.228.85.199: icmp_req=7 ttl=56 time=1738 ms
-64 bytes from 122.228.85.199: icmp_req=8 ttl=56 time=760 ms
-64 bytes from 122.228.85.199: icmp_req=9 ttl=56 time=533 ms
-64 bytes from 122.228.85.199: icmp_req=10 ttl=56 time=3281 ms
-
---- apple.https.tel.ccgslb.com.cn ping statistics ---
-10 packets transmitted, 10 received, 0% packet loss, time 61000ms
-rtt min/avg/max/mdev = 201.836/1543.078/3281.754/1108.149 ms, pipe 4'''.split('\n')
-    else:
-        ping = os.popen("ping -c 10 itunes.apple.com").read().split("\n")
+    output = pingServer(pingServerName)
+    result = {}
+    try:
+        (result["server"], result["ip"], result["dataLength"]) = re.findall(r'''
+                   Ping\s                                 # Case insensitive "Ping"
+                   (.*)                                   # Server real domain
+                   \s                                     # A space
+                   [\[\(]                                 # IP starts with a "[" or "("
+                   (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})     # IP address
+                   [\]\)]                                 # IP ends with a "]" or ")"
+                   \D+                                     # Any char here, as long as it isn't a number
+                   (\d{1,4})                              # Data length
+                   [\s\(]                                 # Data length ends with a space or "("
+                   ''', output, re.IGNORECASE + re.VERBOSE)[0]
+        result["lostPercent"] = re.findall(r'''
+                    (\d+\.?\d{0,2}%)                       # Package lost percent
+                    ''', output, re.VERBOSE)[0] # Original: (\d+\.?\d{0,2}%) 
+        a = re.findall(r'''
+                    %.*
+                    =\s
+                    (\d+\.?\d*)\D+
+                    (\d+\.?\d*)\D+
+                    (\d+\.?\d*)\D+
+                    (.*)
+                    ms
+                    ''', output, re.IGNORECASE + re.DOTALL + re.VERBOSE)
+##r'''
+##                    =\s
+##                    (\d+\.?\d{0,3})\D+
+##                    (\d+\.?\d{0,3})\D+
+##                    (\d+\.?\d{0,3})\D+
+##                    (\d+\.?\d{0,3})
+##                    ms
+##                    '''
+    except IndexError as e:
+        log("Ping result process failed.", 2)
+        raise e
+    
+    print a
+    # Exit here: for debug purpose
+    sys.exit(1)
+    ping = ping.split("\n")
     loss = float(ping[-3].split(" ")[5].replace("%", ""))
     (tmin, tavg, tmax, tstddev) = tuple(ping[-2].split(" ")[3].split("/"))
     log("Uploading data...")
@@ -96,23 +173,19 @@ rtt min/avg/max/mdev = 201.836/1543.078/3281.754/1108.149 ms, pipe 4'''.split('\
     log(post_data(13475, float(tmax)))
     log("===tstddev===")
     log(post_data(13476, float(tstddev)))
+    return 0
 
 def speedtest():
-    '''Use speedtest.net to test speed'''
+    '''Test speed.'''
     res = ''
-    log("Testing speed...")
+    log("Running speed test, please wait...", 0)
+    execPing()
 
-    if fakeSpeedtestResult == 1:
-        log("===Debug Mode===")
-        res = '''Ping: 244.141 ms
-        Download: 0.94 Mbit/s
-        Upload: 0.82 Mbit/s
-        '''
+    if fakeSpeedtestResult != 0:
+        res = debugString.speedtestResult[fakeSpeedtestResult - 1]
     else:
-        res = os.popen("python ./speedtest-cli.py --simple").read()
-    log("Speed test finished.")
-
-    log(res)
+        res = readCommandOutput("python ./speedtest-cli.py --simple")
+        
     try:
         resu = res.split("\n")
         ping = float(resu[0].split(": ")[1].split(" ")[0])
@@ -139,9 +212,28 @@ def speedtest():
 
     log("All tasks finished.")
 
+def printConfig():
+    log("Speedtest Command Wrapper " + __version__, 0)
+    log("by " + __author__, 0)
+    log("==========Config==========")
+    log("Fake Speedtest Result: " + str(bool(fakeSpeedtestResult != 0)), 0)
+    if fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(fakeSpeedtestResult))
+    log("Fake Ping Result: " + str(bool(fakePingResult != 0)), 0)
+    if fakePingResult != 0:log("Use Fake Ping Preset: " + str(fakePingResult))
+    log("Fake Post Status: " + str(bool(fakePostStatus != 0)), 0)
+    if fakePostStatus != 0:log("Use Fake Post Status: " + str(fakePostStatus))
+    log("Verbose Mode: " + str(bool(verboseMode == 1)), 0)
+    log("Min Log Level: "+ logLevelString[logLevel], 0)
+    log("Show Command Output: " + str(bool(showCommandOutput == 1)), 0)
+    log("Ping Server Name: " + pingServerName, 0)
+
 def main():
     '''Launch a full speedtest'''
-
+    try:
+        printConfig()
+        speedtest()
+    except KeyboardInterrupt:
+        log("\nUser Keyboard Interrupt.", 3)
 
 if __name__ == '__main__':
     main()
