@@ -13,3 +13,8 @@ class config:
     sensor['ping'] = XXXXX
     sensor['download'] = XXXXX
     sensor['upload'] = XXXXX
+    sensor['lostpercent'] = XXXXX
+    sensor['min'] = XXXXX
+    sensor['avg'] = XXXXX
+    sensor['max'] = XXXXX
+    sensor['stddev'] = XXXXX

@@ -7,13 +7,13 @@ __author__ = 'James Swineson'
 #Global Config
 
 # Fake Speedtest result for debugging.
-fakeSpeedtestResult = 1
+fakeSpeedtestResult = 0
 # Fake ping result for debugging.
 # 1 for Debian, 2 for Windows, 3 for OS X.
-fakePingResult = 2
+fakePingResult = 0
 # Fake yeelink.com post status.
 # 0 to disable. An HTTP response code (e.g. 200) will enable this option.
-fakePostStatus = 200
+fakePostStatus = 0
 # Output detailed debug message.
 verboseMode = 1
 # Log level setting
@@ -29,6 +29,7 @@ pingServerName = "itunes.apple.com"
 
 # Global variables (DO NOT MODIFY!)
 logSerial = 0
+result = {}
 
 # Strings
 logLevelString = {
@@ -54,7 +55,7 @@ def getCurrentTime():
     '''Return a string for current time.'''
     return str(datetime.datetime.now())
 
-def log(context, level = 0):
+def log(context, level = 0, noInfo = False, end = "\n"):
     '''Print out log text when verbose mode enabled.
 
 Log level definition:
@@ -70,7 +71,8 @@ Log level definition:
     time = getCurrentTime()
     for line in str(context).split("\n"):
         if line == "": print_("\n")
-        else: print_(logLevelString[level] + "[" + str(logSerial) + ":" + time + "]" + line)
+        elif noInfo == True:print_(line, end = end)
+        else: print_(logLevelString[level] + "[" + str(logSerial) + ":" + time + "]" + line, end = end)
     return 0
 
 def post_data1(sensor_id, data):
@@ -83,15 +85,20 @@ def post_data1(sensor_id, data):
     response = conn.getresponse()
     return response.status
 
-def post_data(sensor_id, data):
+def post_data(sensorId, data):
     '''post_data wrapper. Prevent timeout to cause the function never returns.'''
+    if sensorId == 0:
+        log("Zero sensor ID, unable to post data.", 1)
+        return -1
     if fakePostStatus != 0:
         return fakePostStatus
     try:
-        r = post_data1(sensor_id, data)
+        r = post_data1(sensorId, data)
     except (httplib.HTTPException, socket.error) as e:
-        log("HTTP Request failed.")
+        log("HTTP Request failed.", 2)
         return -1
+    if r != 200:
+        log("Network error. Response: " + str(r), 2)
     return r
 
 def readCommandOutput(command):
@@ -100,14 +107,14 @@ def readCommandOutput(command):
         log("Running command: " + command)
     result = os.popen(command).read()
     if showCommandOutput != 0:
-        log("Command output:\n" + result)
+        log("Command output:\n" + result, noInfo = True)
     return result
 
 def pingServer(server, count = 10 ):
     '''Actual ping and return results.'''
     #TODO: add count support and cross-platform support
     if fakePingResult == 0:
-        return readCommandOutput('ping ' + server)
+        return readCommandOutput('ping -c 10 ' + server)
     else:
         try:
             return debugString.pingResult[fakePingResult-1]
@@ -119,9 +126,9 @@ def execPing():
     '''Ping and process data'''
     log("Starting ping test...")
     output = pingServer(pingServerName)
-    result = {}
+    global result
     try:
-        (result["server"], result["ip"], result["dataLength"]) = re.findall(r'''
+        (result["server"], result["ip"], result["datalength"]) = re.findall(r'''
                    Ping\s                                 # Case insensitive "Ping"
                    (.*)                                   # Server real domain
                    \s                                     # A space
@@ -132,18 +139,20 @@ def execPing():
                    (\d{1,4})                              # Data length
                    [\s\(]                                 # Data length ends with a space or "("
                    ''', output, re.IGNORECASE + re.VERBOSE)[0]
-        result["lostPercent"] = re.findall(r'''
-                    (\d+\.?\d{0,2}%)                       # Package lost percent
-                    ''', output, re.VERBOSE)[0] # Original: (\d+\.?\d{0,2}%) 
-        a = re.findall(r'''
+        result["lostpercent"] = re.findall(r'''
+                    (\d+\.?\d{0,2})%                       # Package lost percent
+                    ''', output, re.VERBOSE)[0] # Original: (\d+\.?\d{0,2}%)
+        #(result["min"], result["avg"], result["max"], result["stddev"]) = tuple(output.split("\n")[-1].split(" ")[3].split("/"))
+        #TODO: Debug Value 2 didn't pass.
+        (t1, t2, t3, tstddev)  = re.findall(r'''
                     %.*
                     =\s
                     (\d+\.?\d*)\D+
                     (\d+\.?\d*)\D+
                     (\d+\.?\d*)\D+
-                    (.*)
+                    (\d+\.?\d*)\D*
                     ms
-                    ''', output, re.IGNORECASE + re.DOTALL + re.VERBOSE)
+                    ''', output, re.IGNORECASE + re.DOTALL + re.VERBOSE)[0]
 ##r'''
 ##                    =\s
 ##                    (\d+\.?\d{0,3})\D+
@@ -152,70 +161,69 @@ def execPing():
 ##                    (\d+\.?\d{0,3})
 ##                    ms
 ##                    '''
+        if t2<t3:(result["min"], result["avg"], result["max"], result["stddev"]) = (t1, t2, t3, tstddev)
+        else:(result["min"], result["avg"], result["max"], result["stddev"]) = (t1, t3, t2, tstddev)
     except IndexError as e:
         log("Ping result process failed.", 2)
         raise e
-    
-    print a
-    # Exit here: for debug purpose
-    sys.exit(1)
-    ping = ping.split("\n")
-    loss = float(ping[-3].split(" ")[5].replace("%", ""))
-    (tmin, tavg, tmax, tstddev) = tuple(ping[-2].split(" ")[3].split("/"))
-    log("Uploading data...")
-    log("===Packet loss===")
-    log(post_data(13472, float(loss)))
-    log("===tmin===")
-    log(post_data(13473, float(tmin)))
-    log("===tavg===")
-    log(post_data(13474, float(tavg)))
-    log("===tmax===")
-    log(post_data(13475, float(tmax)))
-    log("===tstddev===")
-    log(post_data(13476, float(tstddev)))
+    result["datalength"] = int(result["datalength"])
+    result["lostpercent"] = float(result["lostpercent"])
+    result["min"] = float(result["min"])
+    result["avg"] = float(result["avg"])
+    result["max"] = float(result["max"])
+    result["stddev"] = float(result["stddev"])
+    #print a
+    #print result
+    log("Ping Result:\n\tServer: %s\n\tIP: %s\n\tData Length: %dBytes\n\tPacket Lost: %.2f%%\n\tMin: %.3fms\n\tAvg: %.3fms\n\tMax: %.3fms\n\tStddev: %.3fms" % (result["server"], result["ip"], result["datalength"], result["lostpercent"], result["min"], result["avg"], result["max"], result["stddev"]))
+    log("Post data: packet lost percentage...", end = "")
+    log(post_data(config.sensor["lostpercent"], result["lostpercent"]), noInfo = True)
+    log("Post data: min...", end = "")
+    log(post_data(config.sensor["min"], result["min"]), noInfo = True)
+    log("Post data: avg...", end = "")
+    log(post_data(config.sensor["avg"], result["avg"]), noInfo = True)
+    log("Post data: max...", end = "")
+    log(post_data(config.sensor["max"], result["max"]), noInfo = True)
+    log("Post data: stddev...", end = "")
+    log(post_data(config.sensor["stddev"], result["stddev"]), noInfo = True)
     return 0
+
+def speedtestCli():
+    global result
+    try:
+        if fakeSpeedtestResult != 0:
+            output = debugString.speedtestResult[fakeSpeedtestResult - 1]
+        else:
+            output = readCommandOutput("python ./speedtest_cli.py --simple")
+        output = output.split("\n")
+        result["ping"] = float(output[0].split(": ")[1].split(" ")[0])
+        result["download"] = float(output[1].split(": ")[1].split(" ")[0]) / 8. * 1024
+        result["upload"] = float(output[2].split(": ")[1].split(" ")[0]) / 8. * 1024
+    except (httplib.HTTPException, socket.error) as e:
+        log("Network problem.", 3)
+        raise e
+
+    #output = '网速测试结果：\n连接时间：%0.3f 毫秒\n下载速度：%0.2f KB/s\n上传速度：%0.2f KB/s' % (ping, down, up)
+    log('Speed Test Result: \n\tPing time: %0.3fms\n\tDownload speed: %0.2fKB/s\n\tUpload speed: %0.2fKB/s' % (result["ping"], result["download"], result["upload"]))
+    log("Post data: ping...", end = "")
+    log(post_data(config.sensor['ping'], result["ping"]), noInfo = True)
+    log("Post data: download...", end = "")
+    log(post_data(config.sensor['download'], result["download"]), noInfo = True)
+    log("Post data: upload...", end = "")
+    log(post_data(config.sensor['upload'], result["upload"]), noInfo = True)
 
 def speedtest():
     '''Test speed.'''
     res = ''
-    log("Running speed test, please wait...", 0)
+    log("Running ping test, please wait...", 0)
     execPing()
-
-    if fakeSpeedtestResult != 0:
-        res = debugString.speedtestResult[fakeSpeedtestResult - 1]
-    else:
-        res = readCommandOutput("python ./speedtest-cli.py --simple")
-        
-    try:
-        resu = res.split("\n")
-        ping = float(resu[0].split(": ")[1].split(" ")[0])
-        down = float(resu[1].split(": ")[1].split(" ")[0]) / 8. * 1024
-        up = float(resu[2].split(": ")[1].split(" ")[0]) / 8. * 1024
-    except (httplib.HTTPException, socket.error) as e:
-        ping = 0
-        down = 0
-        up = 0
-
-    output = '网速测试结果：\n连接时间：%0.3f 毫秒\n下载速度：%0.2f KB/s\n上传速度：%0.2f KB/s' % (ping, down, up)
-    log(output)
-    log("Uploading data...")
-    resp = post_data(config.sensor['ping'], ping)
-    log("===Ping===")
-    log(resp)
-    resp = post_data(config.sensor['download'], down)
-    log("===Download===")
-    log(resp)
-    resp = post_data(config.sensor['upload'], up)
-    log("===Upload===")
-    log(resp)
-    log("Finished.")
-
-    log("All tasks finished.")
+    log("Running speed test, please wait...", 0)
+    speedtestCli()
+    log("Done.", 0)
 
 def printConfig():
     log("Speedtest Command Wrapper " + __version__, 0)
     log("by " + __author__, 0)
-    log("==========Config==========")
+    log("==========Config==========", 0)
     log("Fake Speedtest Result: " + str(bool(fakeSpeedtestResult != 0)), 0)
     if fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(fakeSpeedtestResult))
     log("Fake Ping Result: " + str(bool(fakePingResult != 0)), 0)
@@ -226,6 +234,7 @@ def printConfig():
     log("Min Log Level: "+ logLevelString[logLevel], 0)
     log("Show Command Output: " + str(bool(showCommandOutput == 1)), 0)
     log("Ping Server Name: " + pingServerName, 0)
+    log("==========================", 0)
 
 def main():
     '''Launch a full speedtest'''
@@ -233,7 +242,7 @@ def main():
         printConfig()
         speedtest()
     except KeyboardInterrupt:
-        log("\nUser Keyboard Interrupt.", 3)
+        log("\nUser keyboard interrupt. Program terminated.", 3)
 
 if __name__ == '__main__':
     main()
