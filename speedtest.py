@@ -19,6 +19,7 @@ import socket
 import sys
 import re
 import platform
+import urllib2
 
 from config import Config
 from debugConfig import debugString
@@ -74,6 +75,9 @@ def check_os():
 
     return doNotSupport
 
+def escape(string):
+        return urllib2.quote(string.encode('utf-8'))
+
 def post_data1(sensor_id, data):
     '''Post data to yeelink.com'''
     d = '{"value": %f}' % data
@@ -102,6 +106,28 @@ def post_data(sensorId, data):
         log("Network error. Response: " + str(r), logLevel.ERROR)
     else: r = "OK"
     return r
+
+def pushover_(token, user, data):
+    try:
+        d = 'token=%s&user=%s&title=%s&message=%s' %(token, user, escape(u"家庭网络监视程序"), data)
+        h = {"Content-Type": "application/x-www-form-urlencoded"}
+        p = "/1/messages.json"
+        conn = httplib.HTTPSConnection("api.pushover.net", timeout=Config.networkTimeout)
+        conn.request("POST", p, d, h)
+        response = conn.getresponse()
+        r = response.status
+    except (httplib.HTTPException, socket.error) as e:
+        log("HTTP Request failed.", logLevel.ERROR)
+        return -1
+    if r != 200:
+        log("Network error. Response: " + str(r), logLevel.ERROR)
+    else: r = "OK"
+    return r
+
+def pushover(data):
+    if Config.disablePushover != 0:
+        return -1
+    pushover_(Config.poToken, Config.poUser, data)
 
 def pingServer(server, count = 10 ):
     '''Actual ping and return results.'''
@@ -221,12 +247,12 @@ def speedtest():
     else:
         avgstr = "Average speed: %.2fKB/s, your speed: %.2fKB/s(%.2f%%)" % (result["avgspeed"], result["download"], result["download"]/result["avgspeed"]*100)
     log(avgstr, logLevel.INFO)
-    log("Done.", logLevel.INFO)
 
 def printConfig():
     '''Print out config'''
     log("==========Config==========", logLevel.INFO)
     log("Disable Yeelink Uploading: " + str(bool(Config.disableYeelinkUploading != 0)), logLevel.INFO)
+    log("Disable Pushover: " + str(bool(Config.disablePushover != 0)), logLevel.INFO)
     log("Fake Speedtest Result: " + str(bool(Config.fakeSpeedtestResult != 0)), logLevel.INFO)
     if Config.fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(Config.fakeSpeedtestResult))
     log("Fake Ping Result: " + str(bool(Config.fakePingResult != 0)), logLevel.INFO)
@@ -242,18 +268,12 @@ def printConfig():
     log("==========================", logLevel.INFO)
 
 def additionalApiRequest():
-    if Config.enableAdditonalApiCall == 0: return 0
-    if Config.additionalApiUrl != "":
-        string = Config.additionalApiString % (result["download"], result["upload"], result["avg"], result["download"]/result["avgspeed"]*100)
+        string = Config.pushoverString % (result["download"], result["upload"], result["avg"], result["download"]/result["avgspeed"]*100)
         #log(string, level = logLevel.INFO)
         from urllib2 import quote
         escaped_string = quote(string.encode('utf-8'))
         try:
-            #d = "" #'{"message": %s}' % escaped_string
-            p = Config.additionalApiUrl % escaped_string
-            conn = httplib.HTTPConnection(Config.additionalApiServer, timeout=Config.networkTimeout)
-            conn.request("GET", p)
-            response = conn.getresponse()
+            pushover(escaped_string)
         except (httplib.HTTPException, socket.error) as e:
             log("HTTP Request failed.", logLevel.ERROR)
             return -1
@@ -264,10 +284,12 @@ def main():
     try:
         log("Speedtest Command Wrapper " + __version__, logLevel.INFO)
         log("by " + __author__, logLevel.INFO)
+        if Config.logLevel == 0: httplib.HTTPConnection.debuglevel = 1
         check_os()
         printConfig()
         speedtest()
         additionalApiRequest()
+        log("Done.", logLevel.INFO)
     except KeyboardInterrupt:
         log("\nUser keyboard interrupt. Program terminated.", logLevel.FATALERROR)
 
