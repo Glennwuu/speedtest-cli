@@ -53,3 +53,11 @@ class Config:
     speedtestTimeout = 300
 
     netindexUrl = "http://www.netindex.com/download/4,860/Ningbo/"
+    enableAdditonalApiCall = 0
+    additionalApiServer = "www.example.com"
+    additionalApiUrl = "/test.php?message=%s"
+    additionalApiString = u'''当前网络情况：
+下载速度：%.2fKB/s
+上传速度：%.2fKB/s
+连接延迟：%d 毫秒
+当前网速是平均网速的 %.2f%%'''

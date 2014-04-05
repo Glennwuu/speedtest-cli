@@ -111,7 +111,7 @@ def pingServer(server, count = 10 ):
     else:
         try:
             return debugString.pingResult[Config.fakePingResult-1]
-        except e:
+        except KeyError as e:
             #TODO: Add a good error hint
             sys.exit(1)
 
@@ -214,12 +214,12 @@ def speedtest():
     log("Running speed test, please wait...", logLevel.INFO)
     speedtestCli()
     log("Fetching average speed, please wait...", logLevel.INFO)
-    avgspeed = Netindex().get()
+    result["avgspeed"] = Netindex().get()
     avgstr = ""
-    if avgspeed == -1:
+    if result["avgspeed"]  == -1:
         avgstr = "Network too slow."
     else:
-        avgstr = "Average speed: %.2fKB/s, your speed: %.2fKB/s(%.2f%%)" % (avgspeed, result["download"], result["download"]/avgspeed*100)
+        avgstr = "Average speed: %.2fKB/s, your speed: %.2fKB/s(%.2f%%)" % (result["avgspeed"], result["download"], result["download"]/result["avgspeed"]*100)
     log(avgstr, logLevel.INFO)
     log("Done.", logLevel.INFO)
 
@@ -241,6 +241,24 @@ def printConfig():
     log("Ping Server Name: " + Config.pingServerName, logLevel.INFO)
     log("==========================", logLevel.INFO)
 
+def additionalApiRequest():
+    if Config.enableAdditonalApiCall == 0: return 0
+    if Config.additionalApiUrl != "":
+        string = Config.additionalApiString % (result["download"], result["upload"], result["avg"], result["download"]/result["avgspeed"]*100)
+        #log(string, level = logLevel.INFO)
+        from urllib2 import quote
+        escaped_string = quote(string.encode('utf-8'))
+        try:
+            #d = "" #'{"message": %s}' % escaped_string
+            p = Config.additionalApiUrl % escaped_string
+            conn = httplib.HTTPConnection(Config.additionalApiServer, timeout=Config.networkTimeout)
+            conn.request("GET", p)
+            response = conn.getresponse()
+        except (httplib.HTTPException, socket.error) as e:
+            log("HTTP Request failed.", logLevel.ERROR)
+            return -1
+    
+
 def main():
     '''Launch a full speedtest'''
     try:
@@ -249,7 +267,7 @@ def main():
         check_os()
         printConfig()
         speedtest()
-        
+        additionalApiRequest()
     except KeyboardInterrupt:
         log("\nUser keyboard interrupt. Program terminated.", logLevel.FATALERROR)
 
