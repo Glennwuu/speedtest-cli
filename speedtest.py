@@ -31,9 +31,12 @@ def check_os():
         # 
         "Debian":["7.2"]
     }
+
+    doNotSupport = 0
     def unsupportedos():
         log("ERROR: This OS is not supported.", logLevel.FATALERROR)
     def untestedos():
+        
         log("WARNING: This program hasn't been tested on this OS. Use with caution.", logLevel.WARNING)
 
     ostype = platform.system()
@@ -184,9 +187,11 @@ def speedtestCli():
         result["ping"] = float(output[0].split(": ")[1].split(" ")[0])
         result["download"] = float(output[1].split(": ")[1].split(" ")[0]) / 8. * 1024
         result["upload"] = float(output[2].split(": ")[1].split(" ")[0]) / 8. * 1024
-    except (httplib.HTTPException, socket.error) as e:
+    except (httplib.HTTPException, socket.error, IndexError) as e:
         log("Network problem.", logLevel.FATALERROR)
-        raise e
+        result["ping"] = 32767
+        result["download"] = 0
+        result["upload"] = 0
 
     #output = '网速测试结果：\n连接时间：%0.3f 毫秒\n下载速度：%0.2f KB/s\n上传速度：%0.2f KB/s' % (ping, down, up)
     log('Speed Test Result: \n\tPing time: %0.3fms\n\tDownload speed: %0.2fKB/s\n\tUpload speed: %0.2fKB/s' % (result["ping"], result["download"], result["upload"]), logLevel.INFO)

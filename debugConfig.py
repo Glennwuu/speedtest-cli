@@ -56,7 +56,13 @@ round-trip min/avg/max/stddev = 27.647/84.098/176.227/61.212 ms'''
     ]
 
     speedtestResult = [
+        # Normal result
         '''Ping: 244.141 ms
 Download: 0.94 Mbit/s
-Upload: 0.82 Mbit/s'''
+Upload: 0.82 Mbit/s''',
+        # Empty result
+        '''
+
+
+'''       
         ]
