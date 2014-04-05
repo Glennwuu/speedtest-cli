@@ -27,7 +27,7 @@ from netindex import Netindex
 
 def check_os():
     tested = {
-        "OS X":[],
+        "OS X":["10.9.2"],
         "Windows":[],
         # 
         "Debian":["7.2"]
