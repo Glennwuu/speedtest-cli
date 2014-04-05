@@ -34,9 +34,10 @@ def check_os():
 
     doNotSupport = 0
     def unsupportedos():
+        doNotSupport = 1
         log("ERROR: This OS is not supported.", logLevel.FATALERROR)
     def untestedos():
-        
+        doNotSupport = 2
         log("WARNING: This program hasn't been tested on this OS. Use with caution.", logLevel.WARNING)
 
     ostype = platform.system()
@@ -70,7 +71,7 @@ def check_os():
     else:
         untestedos()
 
-    return 0
+    return doNotSupport
 
 def post_data1(sensor_id, data):
     '''Post data to yeelink.com'''
