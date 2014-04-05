@@ -6,81 +6,29 @@ __author__ = 'James Swineson'
 
 #Global Config
 
-# Fake Speedtest result for debugging.
-fakeSpeedtestResult = 0
-# Fake ping result for debugging.
-# 1 for Debian, 2 for Windows, 3 for OS X.
-fakePingResult = 0
-# Fake yeelink.com post status.
-# 0 to disable. An HTTP response code (e.g. 200) will enable this option.
-fakePostStatus = 0
-# Output detailed debug message.
-verboseMode = 1
-# Log level setting
-# All level < logLevel won't be shown.
-# 0 = info
-# 1 = warning
-# 2 = error
-# 3 = fatal error
-logLevel = 0
-# Output every system command call. Default log level is info(0).
-showCommandOutput = 1
-pingServerName = "itunes.apple.com"
+
 
 # Global variables (DO NOT MODIFY!)
-logSerial = 0
 result = {}
 
 # Strings
-logLevelString = {
-    0:"Info",
-    1:"Warning",
-    2:"Error",
-    3:"Fatal Error"
-    }
 
-import os
+
 import httplib
 import socket
 import sys
-import datetime
 import re
 
-from config import config
+from config import Config
 from debugConfig import debugString
 from commonlib import *
-
-
-def getCurrentTime():
-    '''Return a string for current time.'''
-    return str(datetime.datetime.now())
-
-def log(context, level = 0, noInfo = False, end = "\n"):
-    '''Print out log text when verbose mode enabled.
-
-Log level definition:
-
-0 = info
-1 = warning
-2 = error
-3 = fatal error
-'''
-    if (verboseMode == 0 or level < logLevel):return 0
-    global logSerial
-    logSerial = logSerial + 1
-    time = getCurrentTime()
-    for line in str(context).split("\n"):
-        if line == "": print_("\n")
-        elif noInfo == True:print_(line, end = end)
-        else: print_(logLevelString[level] + "[" + str(logSerial) + ":" + time + "]" + line, end = end)
-    return 0
 
 def post_data1(sensor_id, data):
     '''Post data to yeelink.com'''
     d = '{"value": %f}' % data
-    h = {"U-ApiKey": config.API_KEY}
-    p = "/v1.0/device/%d/sensor/%d/datapoints" % (config.device_id, sensor_id)
-    conn = httplib.HTTPConnection("api.yeelink.net", timeout=30)
+    h = {"U-ApiKey": Config.API_KEY}
+    p = "/v1.0/device/%d/sensor/%d/datapoints" % (Config.device_id, sensor_id)
+    conn = httplib.HTTPConnection("api.yeelink.net", timeout=Config.networkTimeout)
     conn.request("POST", p, d, h)
     response = conn.getresponse()
     return response.status
@@ -90,8 +38,8 @@ def post_data(sensorId, data):
     if sensorId == 0:
         log("Zero sensor ID, unable to post data.", 1)
         return -1
-    if fakePostStatus != 0:
-        return fakePostStatus
+    if Config.fakePostStatus != 0:
+        return Config.fakePostStatus
     try:
         r = post_data1(sensorId, data)
     except (httplib.HTTPException, socket.error) as e:
@@ -101,23 +49,14 @@ def post_data(sensorId, data):
         log("Network error. Response: " + str(r), 2)
     return r
 
-def readCommandOutput(command):
-    '''Read the output of a command.'''
-    if showCommandOutput != 0:
-        log("Running command: " + command)
-    result = os.popen(command).read()
-    if showCommandOutput != 0:
-        log("Command output:\n" + result, noInfo = True)
-    return result
-
 def pingServer(server, count = 10 ):
     '''Actual ping and return results.'''
     #TODO: add count support and cross-platform support
-    if fakePingResult == 0:
+    if Config.fakePingResult == 0:
         return readCommandOutput('ping -c 10 ' + server)
     else:
         try:
-            return debugString.pingResult[fakePingResult-1]
+            return debugString.pingResult[Config.fakePingResult-1]
         except e:
             #TODO: Add a good error hint
             sys.exit(1)
@@ -125,7 +64,7 @@ def pingServer(server, count = 10 ):
 def execPing():
     '''Ping and process data'''
     log("Starting ping test...")
-    output = pingServer(pingServerName)
+    output = pingServer(Config.pingServerName)
     global result
     try:
         (result["server"], result["ip"], result["datalength"]) = re.findall(r'''
@@ -176,22 +115,22 @@ def execPing():
     #print result
     log("Ping Result:\n\tServer: %s\n\tIP: %s\n\tData Length: %dBytes\n\tPacket Lost: %.2f%%\n\tMin: %.3fms\n\tAvg: %.3fms\n\tMax: %.3fms\n\tStddev: %.3fms" % (result["server"], result["ip"], result["datalength"], result["lostpercent"], result["min"], result["avg"], result["max"], result["stddev"]))
     log("Post data: packet lost percentage...", end = "")
-    log(post_data(config.sensor["lostpercent"], result["lostpercent"]), noInfo = True)
+    log(post_data(Config.sensor["lostpercent"], result["lostpercent"]), noInfo = True)
     log("Post data: min...", end = "")
-    log(post_data(config.sensor["min"], result["min"]), noInfo = True)
+    log(post_data(Config.sensor["min"], result["min"]), noInfo = True)
     log("Post data: avg...", end = "")
-    log(post_data(config.sensor["avg"], result["avg"]), noInfo = True)
+    log(post_data(Config.sensor["avg"], result["avg"]), noInfo = True)
     log("Post data: max...", end = "")
-    log(post_data(config.sensor["max"], result["max"]), noInfo = True)
+    log(post_data(Config.sensor["max"], result["max"]), noInfo = True)
     log("Post data: stddev...", end = "")
-    log(post_data(config.sensor["stddev"], result["stddev"]), noInfo = True)
+    log(post_data(Config.sensor["stddev"], result["stddev"]), noInfo = True)
     return 0
 
 def speedtestCli():
     global result
     try:
-        if fakeSpeedtestResult != 0:
-            output = debugString.speedtestResult[fakeSpeedtestResult - 1]
+        if Config.fakeSpeedtestResult != 0:
+            output = debugString.speedtestResult[Config.fakeSpeedtestResult - 1]
         else:
             output = readCommandOutput("python ./speedtest_cli.py --simple")
         output = output.split("\n")
@@ -205,11 +144,11 @@ def speedtestCli():
     #output = '网速测试结果：\n连接时间：%0.3f 毫秒\n下载速度：%0.2f KB/s\n上传速度：%0.2f KB/s' % (ping, down, up)
     log('Speed Test Result: \n\tPing time: %0.3fms\n\tDownload speed: %0.2fKB/s\n\tUpload speed: %0.2fKB/s' % (result["ping"], result["download"], result["upload"]))
     log("Post data: ping...", end = "")
-    log(post_data(config.sensor['ping'], result["ping"]), noInfo = True)
+    log(post_data(Config.sensor['ping'], result["ping"]), noInfo = True)
     log("Post data: download...", end = "")
-    log(post_data(config.sensor['download'], result["download"]), noInfo = True)
+    log(post_data(Config.sensor['download'], result["download"]), noInfo = True)
     log("Post data: upload...", end = "")
-    log(post_data(config.sensor['upload'], result["upload"]), noInfo = True)
+    log(post_data(Config.sensor['upload'], result["upload"]), noInfo = True)
 
 def speedtest():
     '''Test speed.'''
@@ -224,16 +163,16 @@ def printConfig():
     log("Speedtest Command Wrapper " + __version__, 0)
     log("by " + __author__, 0)
     log("==========Config==========", 0)
-    log("Fake Speedtest Result: " + str(bool(fakeSpeedtestResult != 0)), 0)
-    if fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(fakeSpeedtestResult))
-    log("Fake Ping Result: " + str(bool(fakePingResult != 0)), 0)
-    if fakePingResult != 0:log("Use Fake Ping Preset: " + str(fakePingResult))
-    log("Fake Post Status: " + str(bool(fakePostStatus != 0)), 0)
-    if fakePostStatus != 0:log("Use Fake Post Status: " + str(fakePostStatus))
-    log("Verbose Mode: " + str(bool(verboseMode == 1)), 0)
-    log("Min Log Level: "+ logLevelString[logLevel], 0)
-    log("Show Command Output: " + str(bool(showCommandOutput == 1)), 0)
-    log("Ping Server Name: " + pingServerName, 0)
+    log("Fake Speedtest Result: " + str(bool(Config.fakeSpeedtestResult != 0)), 0)
+    if Config.fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(Config.fakeSpeedtestResult))
+    log("Fake Ping Result: " + str(bool(Config.fakePingResult != 0)), 0)
+    if Config.fakePingResult != 0:log("Use Fake Ping Preset: " + str(Config.fakePingResult))
+    log("Fake Post Status: " + str(bool(Config.fakePostStatus != 0)), 0)
+    if Config.fakePostStatus != 0:log("Use Fake Post Status: " + str(Config.fakePostStatus))
+    log("Verbose Mode: " + str(bool(Config.verboseMode == 1)), 0)
+    log("Min Log Level: "+ logLevelString[Config.logLevel], 0)
+    log("Show Command Output: " + str(bool(Config.showCommandOutput == 1)), 0)
+    log("Ping Server Name: " + Config.pingServerName, 0)
     log("==========================", 0)
 
 def main():
