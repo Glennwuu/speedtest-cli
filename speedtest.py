@@ -23,6 +23,7 @@ import platform
 from config import Config
 from debugConfig import debugString
 from commonlib import *
+from netindex import Netindex
 
 def check_os():
     tested = {
@@ -85,6 +86,8 @@ def post_data1(sensor_id, data):
 
 def post_data(sensorId, data):
     '''post_data wrapper. Prevent timeout to cause the function never returns.'''
+    if Config.disableYeelinkUploading != 0:
+        return -1
     if sensorId == 0:
         log("Zero sensor ID, unable to post data.", logLevel.WARNING)
         return -1
@@ -210,17 +213,28 @@ def speedtest():
     execPing()
     log("Running speed test, please wait...", logLevel.INFO)
     speedtestCli()
+    log("Fetching average speed, please wait...", logLevel.INFO)
+    avgspeed = Netindex().get()
+    avgstr = ""
+    if avgspeed == -1:
+        avgstr = "Network too slow."
+    else:
+        avgstr = "Average speed: %.2fKB/s, your speed: %.2fKB/s(%.2f%%)" % (avgspeed, result["download"], result["download"]/avgspeed*100)
+    log(avgstr, logLevel.INFO)
     log("Done.", logLevel.INFO)
 
 def printConfig():
     '''Print out config'''
     log("==========Config==========", logLevel.INFO)
+    log("Disable Yeelink Uploading: " + str(bool(Config.disableYeelinkUploading != 0)), logLevel.INFO)
     log("Fake Speedtest Result: " + str(bool(Config.fakeSpeedtestResult != 0)), logLevel.INFO)
     if Config.fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(Config.fakeSpeedtestResult))
     log("Fake Ping Result: " + str(bool(Config.fakePingResult != 0)), logLevel.INFO)
     if Config.fakePingResult != 0:log("Use Fake Ping Preset: " + str(Config.fakePingResult))
     log("Fake Post Status: " + str(bool(Config.fakePostStatus != 0)), logLevel.INFO)
     if Config.fakePostStatus != 0:log("Use Fake Post Status: " + str(Config.fakePostStatus))
+    log("Fake netindex Status: " + str(bool(Config.fakeNetindexStatus != 0)), logLevel.INFO)
+    if Config.fakeNetindexStatus != 0:log("Use Fake netindex Status: " + str(Config.fakeNetindexStatus))
     log("Verbose Mode: " + str(bool(Config.verboseMode == 1)), logLevel.INFO)
     log("Min Log Level: "+ logLevelString[Config.logLevel], logLevel.INFO)
     log("Show Command Output: " + str(bool(Config.showCommandOutput == 1)), logLevel.INFO)
@@ -235,6 +249,7 @@ def main():
         check_os()
         printConfig()
         speedtest()
+        
     except KeyboardInterrupt:
         log("\nUser keyboard interrupt. Program terminated.", logLevel.FATALERROR)
 

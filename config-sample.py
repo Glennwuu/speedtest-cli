@@ -23,7 +23,9 @@ class Config:
     sensor['stddev'] = 0
 
     # Program behavior settings
+    disableYeelinkUploading = 0
     # Fake Speedtest result for debugging.
+    # 1 for a valid result, 2 for an empty one.
     fakeSpeedtestResult = 0
     # Fake ping result for debugging.
     # 1 for Debian, 2 for Windows, 3 for OS X.
@@ -31,18 +33,21 @@ class Config:
     # Fake yeelink.com post status.
     # 0 to disable. An HTTP response code (e.g. 200) will enable this option.
     fakePostStatus = 0
+    # Fake netindex response.
+    fakeNetindexStatus = 0
     # Output detailed debug message.
     verboseMode = 1
     # Log level setting
     # All level < logLevel won't be shown.
-    # 0 = info
-    # 1 = warning
-    # 2 = error
-    # 3 = fatal error
-    logLevel = 1
+    # 0 = debug
+    # 1 = info
+    # 2 = warning
+    # 3 = error
+    # 4 = fatal error
+    logLevel = 0
     # Output every system command call. Default log level is info(0).
-    showCommandOutput = 0
+    showCommandOutput = 1
     pingServerName = "itunes.apple.com"
     networkTimeout = 30
-    pingTimeout = 180
-    speedtestTimeout = 180
+    pingTimeout = 300
+    speedtestTimeout = 300
