@@ -18,10 +18,56 @@ import httplib
 import socket
 import sys
 import re
+import platform
 
 from config import Config
 from debugConfig import debugString
 from commonlib import *
+
+def check_os():
+    tested = {
+        "OS X":[],
+        "Windows":[],
+        # 
+        "Debian":["7.2"]
+    }
+    def unsupportedos():
+        log("ERROR: This OS is not supported.", logLevel.FATALERROR)
+    def untestedos():
+        log("WARNING: This program hasn't been tested on this OS. Use with caution.", logLevel.WARNING)
+
+    ostype = platform.system()
+    if ostype == "Darwin":
+        (release, versioninfo, machine) = platform.mac_ver()
+        # example: ('10.9.2', ('', '', ''), 'x86_64')
+        for item in tested["OS X"]:
+            if release == item:
+                break
+        untestedos()
+        
+    elif ostype == "Linux":
+        (distname,version,sid) = platform.linux_distribution()
+        # example: ('debian', '7.2', '')
+        try:
+            for item in tested[distname]:
+                if release == item:
+                    break
+        except KeyError as e:
+            pass
+        untestedos()
+        
+    elif ostype == "Windows":
+        (release, version, csd, ptype) = platform.win32_ver()
+        # example: ('8', '6.2.9200', '', u'Multiprocessor Free')
+        for item in tested["Windows"]:
+            if version == item:
+                break
+        untestedos()
+        
+    else:
+        untestedos()
+
+    return 0
 
 def post_data1(sensor_id, data):
     '''Post data to yeelink.com'''
@@ -161,8 +207,7 @@ def speedtest():
     log("Done.", logLevel.INFO)
 
 def printConfig():
-    log("Speedtest Command Wrapper " + __version__, logLevel.INFO)
-    log("by " + __author__, logLevel.INFO)
+    '''Print out config'''
     log("==========Config==========", logLevel.INFO)
     log("Fake Speedtest Result: " + str(bool(Config.fakeSpeedtestResult != 0)), logLevel.INFO)
     if Config.fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(Config.fakeSpeedtestResult))
@@ -179,6 +224,9 @@ def printConfig():
 def main():
     '''Launch a full speedtest'''
     try:
+        log("Speedtest Command Wrapper " + __version__, logLevel.INFO)
+        log("by " + __author__, logLevel.INFO)
+        check_os()
         printConfig()
         speedtest()
     except KeyboardInterrupt:
