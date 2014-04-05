@@ -11,7 +11,15 @@ import subprocess
 import threading
 from config import Config
 
-__all__ = ["logLevelString", "log", "getCurrentTime", "readCommandOutput", "Command"]
+# all things that can be imported
+__all__ = [
+    "logLevelString",
+    "logLevel",
+    "log",
+    "getCurrentTime",
+    "readCommandOutput",
+    "Command"
+    ]
 
 try:
     import builtins
@@ -71,21 +79,32 @@ else:
 
 logSerial = 0
 logLevelString = {
-    0:"Info",
-    1:"Warning",
-    2:"Error",
-    3:"Fatal Error"
+    0:"Debug",
+    1:"Info",
+    2:"Warning",
+    3:"Error",
+    4:"Fatal Error"
     }
+
+class logLevel(object):
+    DEBUG = 0
+    INFO = 1
+    WARNING = 2
+    ERROR = 3
+    FATALERROR = 4
 
 def log(context, level = 0, noInfo = False, end = "\n"):
     '''Print out log text when verbose mode enabled.
 
 Log level definition:
 
-0 = info
-1 = warning
-2 = error
-3 = fatal error
+0 = debug
+1 = info
+2 = warning
+3 = error
+4 = fatal error
+
+use logLevel consts.
 '''
     if (Config.verboseMode == 0 or level < Config.logLevel):return 0
     global logSerial
@@ -111,44 +130,60 @@ class Command(object):
     def __init__(self, cmd):
         self.cmd = cmd
         self.process = None
+        self.commandOutput = ""
+        self.ret = 0
 
-    def run(self, timeout):
+    def run(self, timeout = -1):
         def target():
-            log('Thread started', 0)
-            self.process = subprocess.Popen(self.cmd, shell=True)
-            self.process.communicate()
-            log('Thread finished', 0)
+            log('Thread started', logLevel.DEBUG)
+            self.process = subprocess.Popen(self.cmd, shell = True, stdout = subprocess.PIPE)
+            self.commandOutput = self.process.stdout.read()
+            self.ret = self.process.returncode
+            log('Thread finished', logLevel.DEBUG)
 
-        thread = threading.Thread(target=target)
+        thread = threading.Thread(target = target)
         thread.start()
-
-        thread.join(timeout)
-        if thread.is_alive():
-            log('Terminating process', 2)
-            self.process.terminate()
+        if timeout >=0:
+            thread.join(timeout)
+            if thread.isAlive():
+                log('Process timeout. Terminating process...', logLevel.ERROR)
+                self.process.terminate()
+                thread.join()
+        else:
             thread.join()
-        l = 0
+            
         # Dirty hack to make try: block work. Otherwise it raises an AttributeError: 'NoneType' object has no attribute 'returncode'.
         try:
-            if self.process.returncode != 0: l = 2
-            log("Process finished with exit code: " + str(self.process.returncode), l)
+            if self.ret == 0:
+                log("Process finished with exit code " + str(self.process.returncode), logLevel.DEBUG)
+            elif self.ret < 0:
+                log("Process terminated with signal " + str(-self.process.returncode), logLevel.ERROR)
+            else:
+                log("Process finished with exit code " + str(self.process.returncode), logLevel.ERROR)
         except:
-            log(self.process.returncode)
+            log("Return code: " + str(self.ret), 0)
+
+        return self.commandOutput
 
 def __readCommandOutput(command, mtimeout):
     '''Read the output of a command.'''
     if Config.showCommandOutput != 0:
         log("Running command: " + command)
     #result = os.popen(command).read()
-    
+    c = Command(command)
     if mtimeout < 0:
-        result = os.popen(command).read()
+        result = c.run()
     else:
-        c = Command(command)
-        c.run(timeout = mtimeout)
+        result = c.run(timeout = mtimeout)
     if Config.showCommandOutput != 0:
-        log("Command output:\n" + result, noInfo = True)
+        log("Command output:\n" + result, logLevel.DEBUG, noInfo = True)
     return result
 
 def readCommandOutput(command, timeout = -1):
     return __readCommandOutput(command, timeout)
+
+if __name__ == '__main__':
+    # debug only
+    a = Command("echo 1;sleep 2;echo 2")
+    b = a.run()
+    print b

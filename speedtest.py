@@ -36,17 +36,18 @@ def post_data1(sensor_id, data):
 def post_data(sensorId, data):
     '''post_data wrapper. Prevent timeout to cause the function never returns.'''
     if sensorId == 0:
-        log("Zero sensor ID, unable to post data.", 1)
+        log("Zero sensor ID, unable to post data.", logLevel.WARNING)
         return -1
     if Config.fakePostStatus != 0:
         return Config.fakePostStatus
     try:
         r = post_data1(sensorId, data)
     except (httplib.HTTPException, socket.error) as e:
-        log("HTTP Request failed.", 2)
+        log("HTTP Request failed.", logLevel.ERROR)
         return -1
     if r != 200:
-        log("Network error. Response: " + str(r), 2)
+        log("Network error. Response: " + str(r), logLevel.ERROR)
+    else: r = "OK"
     return r
 
 def pingServer(server, count = 10 ):
@@ -103,7 +104,7 @@ def execPing():
         if t2<t3:(result["min"], result["avg"], result["max"], result["stddev"]) = (t1, t2, t3, tstddev)
         else:(result["min"], result["avg"], result["max"], result["stddev"]) = (t1, t3, t2, tstddev)
     except IndexError as e:
-        log("Ping result process failed.", 2)
+        log("Ping result process failed.", logLevel.FATALERROR)
         raise e
     result["datalength"] = int(result["datalength"])
     result["lostpercent"] = float(result["lostpercent"])
@@ -113,17 +114,17 @@ def execPing():
     result["stddev"] = float(result["stddev"])
     #print a
     #print result
-    log("Ping Result:\n\tServer: %s\n\tIP: %s\n\tData Length: %dBytes\n\tPacket Lost: %.2f%%\n\tMin: %.3fms\n\tAvg: %.3fms\n\tMax: %.3fms\n\tStddev: %.3fms" % (result["server"], result["ip"], result["datalength"], result["lostpercent"], result["min"], result["avg"], result["max"], result["stddev"]))
-    log("Post data: packet lost percentage...", end = "")
-    log(post_data(Config.sensor["lostpercent"], result["lostpercent"]), noInfo = True)
-    log("Post data: min...", end = "")
-    log(post_data(Config.sensor["min"], result["min"]), noInfo = True)
-    log("Post data: avg...", end = "")
-    log(post_data(Config.sensor["avg"], result["avg"]), noInfo = True)
-    log("Post data: max...", end = "")
-    log(post_data(Config.sensor["max"], result["max"]), noInfo = True)
-    log("Post data: stddev...", end = "")
-    log(post_data(Config.sensor["stddev"], result["stddev"]), noInfo = True)
+    log("Ping Result:\n\tServer: %s\n\tIP: %s\n\tData Length: %dBytes\n\tPacket Lost: %.2f%%\n\tMin: %.3fms\n\tAvg: %.3fms\n\tMax: %.3fms\n\tStddev: %.3fms" % (result["server"], result["ip"], result["datalength"], result["lostpercent"], result["min"], result["avg"], result["max"], result["stddev"]), logLevel.INFO)
+    log("Post data: packet lost percentage...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor["lostpercent"], result["lostpercent"]), logLevel.DEBUG, noInfo = True)
+    log("Post data: min...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor["min"], result["min"]), logLevel.DEBUG, noInfo = True)
+    log("Post data: avg...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor["avg"], result["avg"]), logLevel.DEBUG, noInfo = True)
+    log("Post data: max...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor["max"], result["max"]), logLevel.DEBUG, noInfo = True)
+    log("Post data: stddev...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor["stddev"], result["stddev"]), logLevel.DEBUG, noInfo = True)
     return 0
 
 def speedtestCli():
@@ -138,42 +139,42 @@ def speedtestCli():
         result["download"] = float(output[1].split(": ")[1].split(" ")[0]) / 8. * 1024
         result["upload"] = float(output[2].split(": ")[1].split(" ")[0]) / 8. * 1024
     except (httplib.HTTPException, socket.error) as e:
-        log("Network problem.", 3)
+        log("Network problem.", logLevel.FATALERROR)
         raise e
 
     #output = '网速测试结果：\n连接时间：%0.3f 毫秒\n下载速度：%0.2f KB/s\n上传速度：%0.2f KB/s' % (ping, down, up)
-    log('Speed Test Result: \n\tPing time: %0.3fms\n\tDownload speed: %0.2fKB/s\n\tUpload speed: %0.2fKB/s' % (result["ping"], result["download"], result["upload"]))
-    log("Post data: ping...", end = "")
-    log(post_data(Config.sensor['ping'], result["ping"]), noInfo = True)
-    log("Post data: download...", end = "")
-    log(post_data(Config.sensor['download'], result["download"]), noInfo = True)
-    log("Post data: upload...", end = "")
-    log(post_data(Config.sensor['upload'], result["upload"]), noInfo = True)
+    log('Speed Test Result: \n\tPing time: %0.3fms\n\tDownload speed: %0.2fKB/s\n\tUpload speed: %0.2fKB/s' % (result["ping"], result["download"], result["upload"]), logLevel.INFO)
+    log("Post data: ping...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor['ping'], result["ping"]), logLevel.DEBUG, noInfo = True)
+    log("Post data: download...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor['download'], result["download"]), logLevel.DEBUG, noInfo = True)
+    log("Post data: upload...", logLevel.DEBUG, end = "")
+    log(post_data(Config.sensor['upload'], result["upload"]), logLevel.DEBUG, noInfo = True)
 
 def speedtest():
     '''Test speed.'''
     res = ''
-    log("Running ping test, please wait...", 0)
+    log("Running ping test, please wait...", logLevel.INFO)
     execPing()
-    log("Running speed test, please wait...", 0)
+    log("Running speed test, please wait...", logLevel.INFO)
     speedtestCli()
-    log("Done.", 0)
+    log("Done.", logLevel.INFO)
 
 def printConfig():
-    log("Speedtest Command Wrapper " + __version__, 0)
-    log("by " + __author__, 0)
-    log("==========Config==========", 0)
-    log("Fake Speedtest Result: " + str(bool(Config.fakeSpeedtestResult != 0)), 0)
+    log("Speedtest Command Wrapper " + __version__, logLevel.INFO)
+    log("by " + __author__, logLevel.INFO)
+    log("==========Config==========", logLevel.INFO)
+    log("Fake Speedtest Result: " + str(bool(Config.fakeSpeedtestResult != 0)), logLevel.INFO)
     if Config.fakeSpeedtestResult != 0:log("Use Speedtest Result Preset: " + str(Config.fakeSpeedtestResult))
-    log("Fake Ping Result: " + str(bool(Config.fakePingResult != 0)), 0)
+    log("Fake Ping Result: " + str(bool(Config.fakePingResult != 0)), logLevel.INFO)
     if Config.fakePingResult != 0:log("Use Fake Ping Preset: " + str(Config.fakePingResult))
-    log("Fake Post Status: " + str(bool(Config.fakePostStatus != 0)), 0)
+    log("Fake Post Status: " + str(bool(Config.fakePostStatus != 0)), logLevel.INFO)
     if Config.fakePostStatus != 0:log("Use Fake Post Status: " + str(Config.fakePostStatus))
-    log("Verbose Mode: " + str(bool(Config.verboseMode == 1)), 0)
-    log("Min Log Level: "+ logLevelString[Config.logLevel], 0)
-    log("Show Command Output: " + str(bool(Config.showCommandOutput == 1)), 0)
-    log("Ping Server Name: " + Config.pingServerName, 0)
-    log("==========================", 0)
+    log("Verbose Mode: " + str(bool(Config.verboseMode == 1)), logLevel.INFO)
+    log("Min Log Level: "+ logLevelString[Config.logLevel], logLevel.INFO)
+    log("Show Command Output: " + str(bool(Config.showCommandOutput == 1)), logLevel.INFO)
+    log("Ping Server Name: " + Config.pingServerName, logLevel.INFO)
+    log("==========================", logLevel.INFO)
 
 def main():
     '''Launch a full speedtest'''
@@ -181,7 +182,7 @@ def main():
         printConfig()
         speedtest()
     except KeyboardInterrupt:
-        log("\nUser keyboard interrupt. Program terminated.", 3)
+        log("\nUser keyboard interrupt. Program terminated.", logLevel.FATALERROR)
 
 if __name__ == '__main__':
     main()
