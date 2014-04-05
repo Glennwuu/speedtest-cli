@@ -51,3 +51,5 @@ class Config:
     networkTimeout = 30
     pingTimeout = 300
     speedtestTimeout = 300
+
+    netindexUrl = "http://www.netindex.com/download/4,860/Ningbo/"

@@ -5,23 +5,7 @@ __version__ = '0.0.1'
 __author__ = 'James Swineson'
 
 # Net stats
-# http://www.netindex.com/download/4,860/Ningbo/
-# Find the following data:
-##    <header class="overview-header pure-g-r">
-##              <div class="pure-u-3-5">
-##                <p class="overview-type">Broadband download</p>
-##                <h1 class="overview-heading">Ningbo, China</h1>&nbsp;<div class="tooltip-container">
-##                  <button class="icon-info tooltip-toggle text-hide">Info</button>
-##                  <div class="tooltip">Results were obtained by analyzing test data between Mar 5, 2014 and Apr 3, 2014. Tests from 30,243 unique IPs have been taken in this city and of 45,389 total tests, 3,467 are being used for the current Index.</div>
-##                </div>
-##              </div>
-##
-##              <div class="pure-u-2-5">
-##                <div class="figure figure-large">
-##                  <b class="figure-content">17.5</b>
-##                  <span class="figure-unit">Mbps</span>
-##              </div>
-##            </header>
+# see http://www.netindex.com/
 
 import httplib
 import socket
@@ -36,7 +20,7 @@ __all__=["Netindex"]
 
 class Netindex:
     def __init__(self):
-        self.url_homepage = 'http://www.netindex.com/download/4,860/Ningbo/'
+        self.url_homepage = Config.netindexUrl
         self.user_agent = 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0)'
         self.headers = {'User-Agent': self.user_agent}
 
@@ -60,11 +44,16 @@ class Netindex:
 
     def process_data_all(self, data):
         pattern = r'<div class="figure figure-large">\n.*<b class="figure-content">(\d+\.?\d*)</b>'
-        a = float(re.findall(pattern, data)[0]) / 8 * 1024
-        log("Average net speed: %.2fKB/s" % a, logLevel.INFO)
-        return a
+        try:
+            a = float(re.findall(pattern, data)[0]) / 8 * 1024
+            log("Average net speed: %.2fKB/s" % a, logLevel.INFO)
+            return a
+        except (NameError, KeyError) as e:
+            log("HTTP Request failed.", logLevel.ERROR)
+            return -1
 
 def main():
+    # debug purpose only.
     try:
         s = Netindex()
         s.get()
