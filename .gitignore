@@ -1,5 +1,6 @@
 # Personal Config
 config.py
+config.pyc
 
 # OS X
 .DS_Store
