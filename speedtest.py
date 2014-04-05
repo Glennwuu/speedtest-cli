@@ -84,7 +84,7 @@ def execPing():
                     ''', output, re.VERBOSE)[0] # Original: (\d+\.?\d{0,2}%)
         #(result["min"], result["avg"], result["max"], result["stddev"]) = tuple(output.split("\n")[-1].split(" ")[3].split("/"))
         #TODO: Debug Value 2 didn't pass.
-        (t1, t2, t3, tstddev)  = re.findall(r'''
+        (t1, t2, t3, tstddev)  = tuple([float(item) for item in list(re.findall(r'''
                     %.*
                     =\s
                     (\d+\.?\d*)\D+
@@ -92,7 +92,7 @@ def execPing():
                     (\d+\.?\d*)\D+
                     (\d+\.?\d*)\D*
                     ms
-                    ''', output, re.IGNORECASE + re.DOTALL + re.VERBOSE)[0]
+                    ''', output, re.IGNORECASE + re.DOTALL + re.VERBOSE)[0])])
 ##r'''
 ##                    =\s
 ##                    (\d+\.?\d{0,3})\D+
